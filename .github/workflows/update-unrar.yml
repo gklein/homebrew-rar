@@ -2,7 +2,7 @@ name: Check for unrar updates
 
 on:
   schedule:
-    - cron: "0 8 * * *"
+    - cron: "0 5 * * *"
 
 permissions:
   contents: write
