@@ -16,11 +16,11 @@ jobs:
       - name: Check for new version
         id: check
         run: |
-          CURRENT=$(grep -oP 'unrarsrc-\K[0-9]+\.[0-9]+\.[0-9]+' Formula/unrar.rb | head -1)
+          CURRENT=$(grep -oP 'unrarsrc-\K[0-9]+(\.[0-9]+)+' Formula/unrar.rb | head -1)
           echo "current=$CURRENT"
 
           LATEST=$(curl -fsSL https://www.rarlab.com/rar_add.htm \
-            | grep -oP 'href="[^"]*unrarsrc-\K[0-9]+\.[0-9]+\.[0-9]+' \
+            | grep -oP 'href="[^"]*unrarsrc-\K[0-9]+(\.[0-9]+)+' \
             | sort -V | tail -1)
           echo "latest=$LATEST"
 
@@ -41,15 +41,20 @@ jobs:
 
       - name: Update formula and push
         if: steps.check.outputs.up_to_date == 'false'
+        env:
+          LATEST: ${{ steps.check.outputs.latest }}
         run: |
-          LATEST=${{ steps.check.outputs.latest }}
-
           # Download tarball and compute sha256
           SHA256=$(curl -fsSL "https://www.rarlab.com/rar/unrarsrc-${LATEST}.tar.gz" | sha256sum | awk '{print $1}')
           echo "New sha256: $SHA256"
 
+          if ! echo "$SHA256" | grep -qE '^[a-f0-9]{64}$'; then
+            echo "Invalid sha256: $SHA256"
+            exit 1
+          fi
+
           # Update formula
-          sed -i "s|unrarsrc-[0-9]\+\.[0-9]\+\.[0-9]\+\.tar\.gz|unrarsrc-${LATEST}.tar.gz|" Formula/unrar.rb
+          sed -i "s|unrarsrc-[0-9]\+\(\.[0-9]\+\)\+\.tar\.gz|unrarsrc-${LATEST}.tar.gz|" Formula/unrar.rb
           sed -i "s|sha256 \"[a-f0-9]\{64\}\"|sha256 \"${SHA256}\"|" Formula/unrar.rb
 
           # Verify the changes look correct
